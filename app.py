@@ -51,7 +51,7 @@ def reply(id):
         # Send reply to ESP32 (assuming it's listening)
         try:
             response = requests.post(
-                'http://YOUR_ESP32_IP/reply',
+                'http://192.168.43.72/reply',
                 json={'sender_id': sender_id, 'message': message},
                 timeout=5
             )
