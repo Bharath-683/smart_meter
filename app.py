@@ -1,10 +1,9 @@
-from flask import Flask, request, render_template, redirect
+from flask import Flask, request, render_template
 import mysql.connector
 import os
 
 app = Flask(__name__)
 
-# Load from environment variables
 DB_CONFIG = {
     'host': os.environ.get('DB_HOST'),
     'user': os.environ.get('DB_USER'),
@@ -36,10 +35,5 @@ def receive_sms():
 
     return {"status": "Message received"}
 
-@app.route('/send/<int:id>', methods=['GET'])
-def send_message(id):
-    # You can use any SMS API here (like Twilio or Fast2SMS)
-    return f"Send SMS back to sender ID with ID = {id} (Add your SMS API logic here)"
-
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(host='0.0.0.0', port=10000)
