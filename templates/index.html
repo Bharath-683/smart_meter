@@ -3,9 +3,37 @@
 <head>
   <title>SMS Monitor</title>
   <style>
-    body { font-family: Arial, sans-serif; padding: 20px; }
+    body {
+      font-family: Arial, sans-serif;
+      padding: 20px;
+      background-color: #f9f9f9;
+    }
     .message-card {
-      border: 1px solid #ccc; border-radius: 10px; padding: 10px; margin-bottom: 15px;
+      background-color: #fff;
+      border: 1px solid #ccc;
+      border-radius: 10px;
+      padding: 15px;
+      margin-bottom: 20px;
+      box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+    }
+    textarea, input[type="text"] {
+      width: 100%;
+      padding: 10px;
+      margin-top: 10px;
+      border-radius: 5px;
+      border: 1px solid #ccc;
+    }
+    button {
+      margin-top: 10px;
+      padding: 10px 15px;
+      background-color: #007BFF;
+      color: white;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    button:hover {
+      background-color: #0056b3;
     }
   </style>
 </head>
@@ -15,10 +43,10 @@
     <div class="message-card">
       <p><strong>From:</strong> {{ msg.sender_id }}</p>
       <p><strong>Message:</strong> {{ msg.message }}</p>
-      <form method="POST" action="/reply/{{ msg.id }}">
+      <form action="/reply/{{ msg.id }}" method="POST">
         <input type="hidden" name="phone" value="{{ msg.sender_id }}">
-        <textarea name="reply" placeholder="Type reply..." required></textarea><br>
-        <button type="submit">Send Reply</button>
+        <input type="text" name="reply_message" placeholder="Type your reply" required>
+        <button type="submit">Send</button>
       </form>
     </div>
   {% endfor %}
