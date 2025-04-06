@@ -1,23 +1,26 @@
 <!DOCTYPE html>
 <html>
 <head>
-  <title>SMS Log Monitor</title>
+  <title>SMS Monitor</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; }
+    .message-card {
+      border: 1px solid #ccc; border-radius: 10px; padding: 10px; margin-bottom: 15px;
+    }
+  </style>
 </head>
 <body>
-  <h1>Received SMS Logs</h1>
-  <table border="1" cellpadding="8">
-    <thead>
-      <tr><th>Sender ID</th><th>Message</th><th>Received Time</th></tr>
-    </thead>
-    <tbody>
-      {% for msg in messages %}
-        <tr>
-          <td>{{ msg.sender_id }}</td>
-          <td>{{ msg.message }}</td>
-          <td>{{ msg.created_at }}</td>
-        </tr>
-      {% endfor %}
-    </tbody>
-  </table>
+  <h2>Incoming Messages</h2>
+  {% for msg in messages %}
+    <div class="message-card">
+      <p><strong>From:</strong> {{ msg.sender_id }}</p>
+      <p><strong>Message:</strong> {{ msg.message }}</p>
+      <form method="POST" action="/reply/{{ msg.id }}">
+        <input type="hidden" name="phone" value="{{ msg.sender_id }}">
+        <textarea name="reply" placeholder="Type reply..." required></textarea><br>
+        <button type="submit">Send Reply</button>
+      </form>
+    </div>
+  {% endfor %}
 </body>
 </html>
