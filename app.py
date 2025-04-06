@@ -1,9 +1,10 @@
-from flask import Flask, request, render_template
+from flask import Flask, request, render_template, redirect
 import mysql.connector
 import os
 
 app = Flask(__name__)
 
+# Environment variables for deployment
 DB_CONFIG = {
     'host': os.environ.get('DB_HOST'),
     'user': os.environ.get('DB_USER'),
@@ -35,5 +36,20 @@ def receive_sms():
 
     return {"status": "Message received"}
 
+@app.route('/reply/<int:id>', methods=['POST'])
+def reply(id):
+    reply_message = request.form['reply']
+    phone = request.form['phone']
+
+    # Send reply to ESP32 endpoint
+    import requests
+    esp_url = os.environ.get('ESP32_URL')  # e.g., http://esp32-ip/send_sms
+
+    response = requests.post(esp_url, json={"to": phone, "message": reply_message})
+    print("ESP32 response:", response.text)
+
+    return redirect('/')
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=10000)
+    app.run(debug=True)
+
