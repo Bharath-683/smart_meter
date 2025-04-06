@@ -5,7 +5,7 @@ import requests
 
 app = Flask(__name__)
 
-# Database configuration from environment variables
+# Environment variables for deployment
 DB_CONFIG = {
     'host': os.environ.get('DB_HOST'),
     'user': os.environ.get('DB_USER'),
@@ -14,75 +14,70 @@ DB_CONFIG = {
     'port': int(os.environ.get('DB_PORT', 3306))
 }
 
-# Home page: Show all messages
 @app.route('/')
 def index():
-    with mysql.connector.connect(**DB_CONFIG) as conn:
+    try:
+        conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor(dictionary=True)
         cursor.execute("SELECT * FROM sms_logs ORDER BY created_at DESC")
         messages = cursor.fetchall()
-    return render_template("index.html", messages=messages)
+        conn.close()
+        return render_template("index.html", messages=messages)
+    except Exception as e:
+        return f"Database error: {e}", 500
 
-# API to receive SMS from ESP32
 @app.route('/api/sms', methods=['POST'])
 def receive_sms():
-    data = request.json
-    sender_id = data.get('sender_id')
-    message = data.get('message')
+    try:
+        data = request.json
+        sender_id = data.get('sender_id')
+        message = data.get('message')
 
-    with mysql.connector.connect(**DB_CONFIG) as conn:
+        if not sender_id or not message:
+            return {"status": "Missing sender_id or message"}, 400
+
+        conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor()
         cursor.execute("INSERT INTO sms_logs (sender_id, message) VALUES (%s, %s)", (sender_id, message))
         conn.commit()
+        conn.close()
 
-    return {"status": "Message received"}
+        return {"status": "Message received"}
+    except Exception as e:
+        return {"status": f"Server error: {str(e)}"}, 500
 
-# Handle user reply from the web form
 @app.route('/reply/<int:id>', methods=['POST'])
 def reply(id):
-    reply_msg = request.form.get('reply_message')
+    try:
+        message = request.form.get('reply_message')
+        if not message:
+            return "Missing reply message", 400
 
-    with mysql.connector.connect(**DB_CONFIG) as conn:
+        conn = mysql.connector.connect(**DB_CONFIG)
         cursor = conn.cursor(dictionary=True)
         cursor.execute("SELECT * FROM sms_logs WHERE id = %s", (id,))
         sms = cursor.fetchone()
+        conn.close()
 
         if sms:
             sender_id = sms['sender_id']
+            try:
+                response = requests.post(
+                    'http://192.168.43.72/reply',
+                    json={'sender_id': sender_id, 'message': message},
+                    timeout=5
+                )
+                print(f"ESP32 response: {response.text}")
+            except Exception as e:
+                print("ESP32 not responding:", e)
+                return f"ESP32 not responding: {str(e)}", 500
 
-            # Save reply to the same message row
-            cursor.execute("UPDATE sms_logs SET reply = %s WHERE id = %s", (reply_msg, id))
-            conn.commit()
-
-    # Try to send the reply to ESP32 (local IP or remote)
-    try:
-        response = requests.post(
-            'http://192.168.43.72/reply',
-            json={'sender_id': sender_id, 'message': reply_msg},
-            timeout=5
-        )
-        print(f"ESP32 response: {response.text}")
+            return redirect('/')
+        else:
+            return "SMS not found", 404
     except Exception as e:
-        print("ESP32 not responding:", e)
-
-    return redirect('/')
-
-# ESP32 polls this to get the latest reply
-@app.route('/api/replies/<sender_id>', methods=['GET'])
-def get_reply(sender_id):
-    with mysql.connector.connect(**DB_CONFIG) as conn:
-        cursor = conn.cursor(dictionary=True)
-        cursor.execute("""
-            SELECT reply FROM sms_logs
-            WHERE sender_id = %s AND reply IS NOT NULL AND reply != ''
-            ORDER BY created_at DESC LIMIT 1
-        """, (sender_id,))
-        row = cursor.fetchone()
-
-    if row:
-        return {"reply": row['reply']}
-    else:
-        return {"reply": ""}
+        print("Server error:", e)
+        return f"Internal error: {str(e)}", 500
 
 if __name__ == '__main__':
     app.run(debug=True)
