@@ -38,17 +38,31 @@ def receive_sms():
 
 @app.route('/reply/<int:id>', methods=['POST'])
 def reply(id):
-    reply_message = request.form['reply']
-    phone = request.form['phone']
+    message = request.form.get('reply_message')
 
-    # Send reply to ESP32 endpoint
-    import requests
-    esp_url = os.environ.get('ESP32_URL')  # e.g., http://esp32-ip/send_sms
+    conn = mysql.connector.connect(**DB_CONFIG)
+    cursor = conn.cursor(dictionary=True)
+    cursor.execute("SELECT * FROM sms_logs WHERE id = %s", (id,))
+    sms = cursor.fetchone()
+    conn.close()
 
-    response = requests.post(esp_url, json={"to": phone, "message": reply_message})
-    print("ESP32 response:", response.text)
+    if sms:
+        sender_id = sms['sender_id']
+        # Send reply to ESP32 (assuming it's listening)
+        try:
+            response = requests.post(
+                'http://YOUR_ESP32_IP/reply',
+                json={'sender_id': sender_id, 'message': message},
+                timeout=5
+            )
+            print(f"ESP32 response: {response.text}")
+        except Exception as e:
+            print("ESP32 not responding:", e)
 
-    return redirect('/')
+        return redirect('/')
+    else:
+        return "SMS not found", 404
+
 
 if __name__ == '__main__':
     app.run(debug=True)
